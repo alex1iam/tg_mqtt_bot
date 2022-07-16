@@ -126,12 +126,6 @@ if __name__ == '__main__':
         try:
             updater = Updater(TOKEN, use_context=True)
             bot = updater.bot
-            dp = updater.dispatcher
-            dp.add_handler(CommandHandler("start", text))
-            dp.add_handler(CallbackQueryHandler(button))
-            dp.add_handler(MessageHandler(Filters.text, text))
-            dp.add_error_handler(error)
-            updater.start_polling()
             readmqtt()
             updater.idle()
         except Exception as e:
