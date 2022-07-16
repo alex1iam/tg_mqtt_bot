@@ -4,8 +4,7 @@ from itertools import groupby
 
 import paho.mqtt.client as mqtt
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ParseMode
 
 keys = {'погода': '1', 'теплицы': '2', 'приборы': '3'}
 
@@ -25,7 +24,7 @@ def maketree(group, items, path):
 # Telegram process
 def get_keyb():
     return [[InlineKeyboardButton('Погода', callback_data='1'),
-            InlineKeyboardButton('Теплицы', callback_data='2')]]
+             InlineKeyboardButton('Теплицы', callback_data='2')]]
 
 
 def get_data_text(text, alldata):
@@ -41,9 +40,9 @@ def get_data(key, alldata):
     if key == '1':
         try:
             rez = tree['air']['outdoor']['1']['temp'] + ' °C\n' \
-                + tree['air']['outdoor']['1']['humidity'] + ' %\n' \
-                + tree['air']['outdoor']['1']['pressure'] + ' mmHg\n' \
-                + tree['air']['outdoor']['1']['upd']
+                  + tree['air']['outdoor']['1']['humidity'] + ' %\n' \
+                  + tree['air']['outdoor']['1']['pressure'] + ' mmHg\n' \
+                  + tree['air']['outdoor']['1']['upd']
             return rez
         except:
             return 'Нет данных'
@@ -63,13 +62,15 @@ def get_data(key, alldata):
 
 
 def text(update, context):
-    keyboard = get_keyb()
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    rez = get_data_text(update.message.text, alldata)
-    if rez == 'err':
-        update.message.reply_text('>', reply_markup=reply_markup)
-    else:
-        update.message.reply_text(rez)
+    # keyboard = get_keyb()
+    # reply_markup = InlineKeyboardMarkup(keyboard)
+    # rez = get_data_text(update.message.text, alldata)
+    # if rez == 'err':
+    #     update.message.reply_text('>', reply_markup=reply_markup)
+    # else:
+    #     update.message.reply_text(rez)
+    update.message.reply_text("chat id is  <pre>" + str(update.message.chat.id) + "</pre>",
+                              parse_mode=ParseMode.HTML)
 
 
 def button(update, context):
@@ -87,12 +88,14 @@ def error(update, context):
 
 # MQTT process
 def on_connect(client, userdata, flags, rc):
+    print("connected")
     for topic in TOPICS.split(','):
         client.subscribe(topic)
 
 
 def on_message(client, userdata, msg):
     alldata.update({str(msg.topic): str(msg.payload)[2:-1]})
+    bot.send_message(CHAT_ID, msg.topic + ": " + str(msg.payload)[2:-1])
 
 
 def readmqtt():
@@ -104,10 +107,14 @@ def readmqtt():
     client.loop_forever()
 
 
+bot = None
+CHAT_ID = None
+
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read('./settings.ini')
     TOKEN = config['TELEGRAM']['token']
+    CHAT_ID = config['TELEGRAM']['CHAT']
     NAME = config['MQTT']['username']
     PASS = config['MQTT']['password']
     IP = config['MQTT']['ip']
@@ -118,6 +125,7 @@ if __name__ == '__main__':
     while 1:
         try:
             updater = Updater(TOKEN, use_context=True)
+            bot = updater.bot
             dp = updater.dispatcher
             dp.add_handler(CommandHandler("start", text))
             dp.add_handler(CallbackQueryHandler(button))
@@ -126,6 +134,6 @@ if __name__ == '__main__':
             updater.start_polling()
             readmqtt()
             updater.idle()
-        except:
-            print('Connection error')
+        except Exception as e:
+            print('Connection error:', e)
             time.sleep(5)
